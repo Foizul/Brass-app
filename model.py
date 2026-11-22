@@ -2,8 +2,17 @@ import numpy as np
 import pandas as pd
 
 
-def load_invoices(path):
-    df = pd.read_csv(path, parse_dates=["date"])
+def load_invoices(src):
+    """src: a CSV file path or URL with a date column and a price column."""
+    df = pd.read_csv(src)
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    if not {"date", "price"} <= set(df.columns):
+        df = df.iloc[:, :2]
+        df.columns = ["date", "price"]
+    df = df[["date", "price"]].copy()
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["price"] = pd.to_numeric(df["price"].astype(str).str.replace(",", ""), errors="coerce")
+    df = df.dropna()
     return df.groupby("date", as_index=False)["price"].mean().sort_values("date").reset_index(drop=True)
 
 

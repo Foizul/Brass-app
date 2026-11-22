@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -23,7 +25,31 @@ def get_market():
         return None
 
 
-df = load_invoices("invoices.csv")
+def sheet_csv_url():
+    """Reads the Google Sheet link from sheet_link.txt and turns it into a CSV download link."""
+    try:
+        link = open("sheet_link.txt").read().strip()
+    except FileNotFoundError:
+        return None
+    m = re.search(r"/d/([a-zA-Z0-9_-]+)", link)
+    if not m:
+        return None
+    gid = re.search(r"gid=(\d+)", link)
+    return f"https://docs.google.com/spreadsheets/d/{m.group(1)}/export?format=csv&gid={gid.group(1) if gid else 0}"
+
+
+@st.cache_data(ttl=300)
+def get_invoices():
+    url = sheet_csv_url()
+    if url:
+        try:
+            return load_invoices(url), "Google Sheet"
+        except Exception:
+            pass
+    return load_invoices("invoices.csv"), "backup file (Google Sheet not connected)"
+
+
+df, source = get_invoices()
 mkt = get_market()
 st.title("Scrap brass: buy or wait?")
 h = st.slider("Look ahead (days)", 7, 45, 21)
@@ -63,3 +89,8 @@ if mkt is not None:
     st.caption(f"Market data last updated: {mkt.index[-1].date()}")
 else:
     st.caption("Copper data could not be downloaded right now, so the simple range is shown.")
+
+st.caption(f"Invoice data from: {source}. Latest entry: {df['date'].iloc[-1].date()} at {df['price'].iloc[-1]:.0f}. {len(df)} invoices.")
+if st.button("Refresh data now"):
+    st.cache_data.clear()
+    st.rerun()
