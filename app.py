@@ -43,10 +43,12 @@ def get_invoices():
     url = sheet_csv_url()
     if url:
         try:
-            return load_invoices(url), "Google Sheet"
+            d = load_invoices(url)
+            if len(d) >= 5:
+                return d, "Google Sheet"
         except Exception:
             pass
-    return load_invoices("invoices.csv"), "backup file (Google Sheet not connected)"
+    return load_invoices("invoices.csv"), "backup file (Google Sheet not connected or unreadable: check sharing is 'Anyone with the link' and the headers are date and price)"
 
 
 df, source = get_invoices()
